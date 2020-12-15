@@ -178,15 +178,14 @@ class ThompsonSampling:
         return "Thompson Sampling"
 
 
-
-
 class MCTopM: 
     def __init__(self, Nbplayers):
         self.Nbplayers=Nbplayers
 
     
 class Player:
-    def __init__(self, nb_arms, nb_players):
+    def __init__(self, nb_arms, nb_players,alpha=0.1):
+        self.alpha=alpha
         self.nb_arms= nb_arms
         self.nb_players=nb_players
         self.clear()
@@ -196,6 +195,7 @@ class Player:
         self.cum_rewards = np.zeros(self.nb_arms)
         self.best_arms=np.zeros(self.nb_players)
         self.ucbs=np.zeros(self.nb_arms)
+        self.my_arm=None
         self.t = 0
         self.has_collided=False
         self.Explore = True 
@@ -216,14 +216,17 @@ class Player:
         else:  # no collision
             # arms_previously_worse = set(np.where(self.ucbs <= self.ucbs[self.my_arm])[0])
             # new_arms_to_choose = set(best_arms) & arms_previously_worse
-            new_arms_to_choose = np.where((ucbs <= ucbs[bras]) & (ucbs_new >= ucbs_new[best_arms[-1]]))[0]
+            new_arms_to_choose = np.where((self.ucbs <= self.ucbs[self.my_arm]) & (ucbs_new >= ucbs_new[best_arms[-1]]))[0]
+            self.ucbs = ucbs_new
             return np.random.choice(new_arms_to_choose)
-        self.ucbs = ucbs_new
+        
 
-    def receiveReward(self,arm,reward, collision):
-        self.cumRewards[arm] = self.cumRewards[arm]+reward
+    def receiveReward(self,arm,reward, collision=False):
+        self.cum_rewards[arm] = self.cum_rewards[arm]+reward
         self.nb_draws[arm] = self.nb_draws[arm] +1
         self.has_collided=collision
+        self.my_arm=arm
+
 
     def name(self):
         return "Player"
