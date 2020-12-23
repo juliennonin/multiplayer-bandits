@@ -83,6 +83,7 @@ class Gaussian(Arm):
 
     @classmethod
     def kl_ucb(cls, x, level, precision=1e-6, sig2=1.):
+        # [TODO]: Can we get rid of the arguments sig2?
         return x + sqrt(2 * sig2 * level)
         
 
