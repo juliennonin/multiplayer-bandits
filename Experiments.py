@@ -11,12 +11,12 @@ def OneBanditOneLearnerOneRun(bandit, strategy, timeHorizon):
     strategy.clear() # reset previous history
     for t in range(timeHorizon):
         # choose the next arm to play with the bandit algorithm
-        arm = strategy.chooseArmToPlay()
+        arm = strategy.choose_arm_to_play()
         # get the reward of the chosen arm
-        reward = bandit.generateReward(arm)
+        reward = bandit.generate_reward(arm)
 
         # update the algorithm with the observed reward
-        strategy.receiveReward(arm, reward)
+        strategy.receive_reward(arm, reward)
         # store what happened
         selections.append(arm)
         rewards.append(reward)

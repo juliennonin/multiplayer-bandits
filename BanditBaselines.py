@@ -19,7 +19,7 @@ class UCB:
         self.t = 0
         self.Explore = True 
 
-    def chooseArmToPlay(self):
+    def choose_arm_to_play(self):
         self.t=self.t+1
         if min(self.nbDraws)==0:
              return randmax(-self.nbDraws)
@@ -27,7 +27,7 @@ class UCB:
             ucb=self.cumRewards/self.nbDraws + np.sqrt(self.alpha*log(self.t)/self.nbDraws)
             return randmax(ucb)
        
-    def receiveReward(self,arm,reward):
+    def receive_reward(self,arm,reward):
         self.cumRewards[arm] = self.cumRewards[arm]+reward
         self.nbDraws[arm] = self.nbDraws[arm] +1
 
@@ -47,7 +47,7 @@ class klUCB:
         self.t = 0
         
     
-    def chooseArmToPlay(self):
+    def choose_arm_to_play(self):
         self.t=self.t+1
         if min(self.nbDraws)==0 or min(self.cumRewards)==0 :
             return randmax(-self.nbDraws)
@@ -55,7 +55,7 @@ class klUCB:
             mu_hat=self.cumRewards/self.nbDraws
             ucb=[klucbBern(mu_hat[arm],np.log(self.t)/self.nbDraws[arm], precision=1e-6)  for arm in range(self.nbArms)]
             return randmax(ucb)
-    def receiveReward(self,arm,reward):
+    def receive_reward(self,arm,reward):
         self.cumRewards[arm] = self.cumRewards[arm]+reward
         self.nbDraws[arm] = self.nbDraws[arm] +1
 
@@ -77,12 +77,12 @@ class ThompsonSampling:
         self.t = 0
         # self.Explore = True 
     
-    def chooseArmToPlay(self):
+    def choose_arm_to_play(self):
         self.t=self.t+1
         ucb=[pi.rvs(self.alpha+self.cumRewards[arm],self.beta+self.nbDraws[arm]- self.cumRewards[arm])              for arm in range(self.nbArms)]
         return randmax(ucb)
 
-    def receiveReward(self,arm,reward):
+    def receive_reward(self,arm,reward):
         self.cumRewards[arm] = self.cumRewards[arm]+reward
         self.nbDraws[arm] = self.nbDraws[arm] +1
 
@@ -106,7 +106,7 @@ class Player:
         self.has_collided=False
         self.Explore = True 
 
-    def chooseArmToPlay(self):
+    def choose_arm_to_play(self):
         self.t=self.t+1
         
         if min(self.nb_draws)==0:
@@ -127,7 +127,7 @@ class Player:
             return np.random.choice(new_arms_to_choose)
         
 
-    def receiveReward(self,arm,reward, collision=False):
+    def receive_reward(self,arm,reward, collision=False):
         self.cum_rewards[arm] = self.cum_rewards[arm]+reward
         self.nb_draws[arm] = self.nb_draws[arm] +1
         self.has_collided=collision
@@ -153,7 +153,7 @@ class RandTopM:
         self.t = 0
         self.has_collided=False
 
-    def chooseArmToPlay(self):
+    def choose_arm_to_play(self):
         self.t=self.t+1
         if min(self.nb_draws)==0:
              return randmax(-self.nb_draws)
@@ -173,7 +173,7 @@ class RandTopM:
             self.ucbs = ucbs_new
             return np.random.choice(new_arms_to_choose)
 
-    def receiveReward(self,arm,reward, collision):
+    def receive_reward(self,arm,reward, collision):
         self.cum_rewards[arm] = self.cum_rewards[arm]+reward
         self.nb_draws[arm] = self.nb_draws[arm] +1
         self.has_collided=collision
@@ -191,8 +191,8 @@ class Players2:
         self.clear()
     def clear(self):
         self.strategy.clear()
-    def chooseArmToPlay(self):
-        return self.strategy.chooseArmToPlay()
-    def receiveReward(self,arm,reward,collision):
-        self.strategy.receiveReward(arm,reward, collision)
+    def choose_arm_to_play(self):
+        return self.strategy.choose_arm_to_play()
+    def receive_reward(self,arm,reward,collision):
+        self.strategy.receive_reward(arm,reward, collision)
 
