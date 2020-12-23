@@ -37,6 +37,30 @@ def multiplayer_env(bandit, players, max_time):
     return selections, collisions, sensing_infos
 
 
+# -------- Index Policies --------
+class IndexPolicy():
+
+    def __init__(self):
+        pass
+
+    def compute_index(self, player):
+        raise NotImplementedError("Must be implemented.")
+
+
+class UCB1Policy(IndexPolicy):
+    
+    def __init__(self, alpha):
+        super().__init__()
+        self.alpha = alpha
+
+    def compute_index(self, player):
+        means = player.cum_rewards / player.nb_draws
+        bonus = np.sqrt(self.alpha * np.log(player.t) / player.nb_draws)
+        return means + bonus
+
+class KlUCBPolicy(IndexPolicy):
+    pass
+    
 # -------- Strategies --------
 
 class Player:
@@ -44,7 +68,7 @@ class Player:
         pass
 
 
-class PlayerRandTopUCB(Player):
+class PlayerRandTop(Player):
     """One Player using RandTopM with UCB policy
 
     Args:
@@ -55,7 +79,7 @@ class PlayerRandTopUCB(Player):
     Attributes:
         nb_arms (int):                  number of arms (K)
         nb_players (int):               number of players (M)
-        alpha (int):                    UCB parameter
+        policy (IndexPolicy):           policy (UCB1, klUCB)
 
         nb_draws (array of size K):     number of selections of each arm k
         cum_rewards (array of size K):  cumulative rewards of each arm k
@@ -68,10 +92,10 @@ class PlayerRandTopUCB(Player):
         has_collided (bool):            was there a collision?
     """
 
-    def __init__(self, nb_arms, nb_players, alpha=0.1):
+    def __init__(self, nb_arms, nb_players, policy):
         self.nb_arms = nb_arms
         self.nb_players = nb_players
-        self.alpha = alpha  # UCB parameter
+        self.policy = policy
         self.clear()
 
     def clear(self):
@@ -84,16 +108,12 @@ class PlayerRandTopUCB(Player):
         self.my_arm = None
         self.has_collided = False
 
-    def get_ucb_bonus(self):
-        return np.sqrt(self.alpha * np.log(self.t) / self.nb_draws)
-
     def choose_arm_to_play(self):
         if np.any(self.nb_draws == 0):
             self.my_arm = randmax(-self.nb_draws)
             return self.my_arm
 
-        means = self.cum_rewards / self.nb_draws
-        ucbs_new = means + self.get_ucb_bonus()
+        ucbs_new = self.policy.compute_index(self)
         best_arms = np.argsort(ucbs_new)[:self.nb_players:-1]  # best arms
         
         if self.my_arm not in best_arms:
