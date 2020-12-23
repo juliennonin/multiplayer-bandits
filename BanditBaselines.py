@@ -183,5 +183,16 @@ class RandTopM:
         return "RandTopM"
 
 
-
+class Players2:
+    def __init__(self, nb_arms, nb_players,strategy):
+        self.nb_arms= nb_arms
+        self.nb_players=nb_players
+        self.strategy=strategy(self.nb_arms,self.nb_players)
+        self.clear()
+    def clear(self):
+        self.strategy.clear()
+    def chooseArmToPlay(self):
+        return self.strategy.chooseArmToPlay()
+    def receiveReward(self,arm,reward,collision):
+        self.strategy.receiveReward(arm,reward, collision)
 
