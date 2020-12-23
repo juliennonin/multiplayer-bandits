@@ -2,92 +2,7 @@ import numpy as np
 from math import log,sqrt
 from scipy.stats import beta as pi
 from BanditTools import *
-
-class FTL:
-    """follow the leader (a.k.a. greedy strategy)"""
-    def __init__(self,nbArms):
-        self.nbArms = nbArms
-        self.clear()
-
-    def clear(self):
-        self.nbDraws = np.zeros(self.nbArms)
-        self.cumRewards = np.zeros(self.nbArms)
-        # self.Explore=True 
-
-    def chooseArmToPlay(self):
-        if (min(self.nbDraws)==0):
-            return randmax(-self.nbDraws)
-        else:
-            return randmax(self.cumRewards/self.nbDraws)
-
-    def receiveReward(self,arm,reward):
-        self.cumRewards[arm] = self.cumRewards[arm]+reward
-        self.nbDraws[arm] = self.nbDraws[arm] +1
-
-    def name(self):
-        return "FTL"
-
-
-class UniformExploration:
-    """a strategy that uniformly explores arms"""
-    def __init__(self,nbArms):
-        self.nbArms = nbArms
-        self.clear()
-
-    def clear(self):
-        self.nbDraws = np.zeros(self.nbArms)
-        self.cumRewards = np.zeros(self.nbArms)
-        self.Explore=True
-
-    def chooseArmToPlay(self):
-        return np.random.randint(0,self.nbArms)
-
-    def receiveReward(self,arm,reward):
-        self.cumRewards[arm] = self.cumRewards[arm]+reward
-        self.nbDraws[arm] = self.nbDraws[arm] +1
-
-    def name(self):
-        return "Uniform"
-
-
-
-class ETC:
-    """Explore-Then-Commit strategy for two arms"""
-    def __init__(self, nbArms,Horizon,c=1/2):
-        self.nbArms = 2
-        self.T = Horizon
-        self.clear()
-        # self.Explore = True # are we still exploring? 
-        self.Best = 0
-        self.c = c
-
-    def clear(self):
-        self.nbDraws = np.zeros(self.nbArms)
-        self.cumRewards = np.zeros(self.nbArms)
-        self.t = 0
-        self.Explore = True 
-    
-    def chooseArmToPlay(self):
-        if self.Explore:
-            return np.mod(self.t,2)
-        return self.Best
-
-    def receiveReward(self,arm,reward):
-        self.t+=1
-        self.nbDraws[arm]+=1
-        self.cumRewards+=reward
-
-        if self.Explore and self.t>1 and np.mod(self.t,2)==0:
-            mu_hat=self.cumRewards/self.nbDraws
-            if abs(mu_hat[0]-mu_hat[1]) > sqrt(self.c*np.log(self.T/self.t)/self.t):
-                self.Explore=False
-                self.Best=randmax(mu_hat)
-
-    def name(self):
-        return "ETC"
-
-    
-    from math import log,sqrt
+from math import log,sqrt
 
 class UCB:
     """UCB1 with parameter alpha"""
@@ -119,9 +34,6 @@ class UCB:
 
     def name(self):
         return str(self.nam_e)
-
-
-    
 class klUCB:
     """klUCB (Bernoulli divergence by default)"""
     def __init__(self,nbArms):
@@ -177,12 +89,6 @@ class ThompsonSampling:
     def name(self):
         return "Thompson Sampling"
 
-
-class MCTopM: 
-    def __init__(self, Nbplayers):
-        self.Nbplayers=Nbplayers
-
-    
 class Player:
     def __init__(self, nb_arms, nb_players,alpha=0.1):
         self.alpha=alpha
@@ -230,5 +136,52 @@ class Player:
 
     def name(self):
         return "Player"
+
+class RandTopM:
+    def __init__(self, nb_arms, nb_players,alpha=0.1):
+        self.alpha=alpha
+        self.nb_arms= nb_arms
+        self.nb_players=nb_players
+        self.clear()
+
+    def clear(self):
+        self.nb_draws = np.zeros(self.nb_arms)
+        self.cum_rewards = np.zeros(self.nb_arms)
+        self.best_arms=np.zeros(self.nb_players)
+        self.ucbs=np.zeros(self.nb_arms)
+        self.my_arm=None
+        self.t = 0
+        self.has_collided=False
+
+    def chooseArmToPlay(self):
+        self.t=self.t+1
+        if min(self.nb_draws)==0:
+             return randmax(-self.nb_draws)
+        else:
+            ucbs_new = self.cum_rewards/self.nb_draws + np.sqrt(self.alpha*log(self.t)/self.nb_draws) # use formula
+        best_arms = np.argsort(ucbs_new)[:self.nb_players:-1]  # M best arms
+
+        if self.my_arm in ucbs_new:  # if my arm is still a best arm
+            return self.my_arm
+
+        elif self.has_collided:
+            return np.random.choice(best_arms)
+
+        else:  
+            print(self.my_arm)
+            new_arms_to_choose = np.where((self.ucbs <= self.ucbs[self.my_arm]) & (ucbs_new >= ucbs_new[best_arms[-1]]))[0]
+            self.ucbs = ucbs_new
+            return np.random.choice(new_arms_to_choose)
+
+    def receiveReward(self,arm,reward, collision):
+        self.cum_rewards[arm] = self.cum_rewards[arm]+reward
+        self.nb_draws[arm] = self.nb_draws[arm] +1
+        self.has_collided=collision
+        self.my_arm=arm
+
+    def name(self):
+        return "RandTopM"
+
+
 
 
