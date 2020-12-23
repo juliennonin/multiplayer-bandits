@@ -2,16 +2,17 @@ import numpy as np
 import Arms as arms
 import math
 class MAB:
-    def __init__(self,arms,m):
+    def __init__(self,arms):
         """given a list of arms, create the MAB environnement"""
         self.arms = arms
-        self.nbArms = len(arms)
-        self.m=m           # number of best arm (m<=self.nbArms)
+        self.nb_arms = len(arms)
+        # self.m=m           # number of best arm (m<=self.nbArms)
         self.means = [arm.mean for arm in arms]
-        self.Mbestarm = np.argsort(self.mean)[::-1][:self.m]
+        # self.Mbestarm = np.argsort(self.mean)[::-1][:self.m]
     
     def generateReward(self,arm):
         return self.arms[arm].sample()
+        
 
 ## some functions that create specific MABs
 
