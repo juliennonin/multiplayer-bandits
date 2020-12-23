@@ -58,6 +58,7 @@ class UCB1Policy(IndexPolicy):
         bonus = np.sqrt(self.alpha * np.log(player.t) / player.nb_draws)
         return means + bonus
 
+
 class KlUCBPolicy(IndexPolicy):
     pass
     
