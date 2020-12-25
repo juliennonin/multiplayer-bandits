@@ -4,90 +4,6 @@ from scipy.stats import beta as pi
 from BanditTools import *
 from math import log,sqrt
 
-class UCB:
-    """UCB1 with parameter alpha"""
-    def __init__(self,nbArms,alpha):
-        self.nbArms=nbArms
-        self.alpha=alpha
-        self.nam_e= "UCB1( alpha =" +str(self.alpha) + " )"
-        self.clear()
-    def set_name(self,name):
-        self.nam_e=name
-    def clear(self):
-        self.nbDraws = np.zeros(self.nbArms)
-        self.cumRewards = np.zeros(self.nbArms)
-        self.t = 0
-        self.Explore = True 
-
-    def choose_arm_to_play(self):
-        self.t=self.t+1
-        if min(self.nbDraws)==0:
-             return randmax(-self.nbDraws)
-        else:
-            ucb=self.cumRewards/self.nbDraws + np.sqrt(self.alpha*log(self.t)/self.nbDraws)
-            return randmax(ucb)
-       
-    def receive_reward(self,arm,reward):
-        self.cumRewards[arm] = self.cumRewards[arm]+reward
-        self.nbDraws[arm] = self.nbDraws[arm] +1
-
-
-    def name(self):
-        return str(self.nam_e)
-class klUCB:
-    """klUCB (Bernoulli divergence by default)"""
-    def __init__(self,nbArms):
-        self.nbArms=nbArms
-        self.name="klUCB"
-        self.clear()
-    
-    def clear(self):
-        self.nbDraws = np.zeros(self.nbArms,dtype=int)
-        self.cumRewards = np.zeros(self.nbArms)
-        self.t = 0
-        
-    
-    def choose_arm_to_play(self):
-        self.t=self.t+1
-        if min(self.nbDraws)==0 or min(self.cumRewards)==0 :
-            return randmax(-self.nbDraws)
-        else:
-            mu_hat=self.cumRewards/self.nbDraws
-            ucb=[klucbBern(mu_hat[arm],np.log(self.t)/self.nbDraws[arm], precision=1e-6)  for arm in range(self.nbArms)]
-            return randmax(ucb)
-    def receive_reward(self,arm,reward):
-        self.cumRewards[arm] = self.cumRewards[arm]+reward
-        self.nbDraws[arm] = self.nbDraws[arm] +1
-
-    def name(self):
-        return self.name
-
-
-class ThompsonSampling:
-    """Thompson Sampling with Beta(a,b) prior and Bernoulli likelihood"""
-    def __init__(self,nbArms,alpha,beta):
-        self.nbArms=nbArms
-        self.alpha=alpha
-        self.beta=beta
-        self.clear()
-    
-    def clear(self):
-        self.nbDraws = np.zeros(self.nbArms,dtype=int)
-        self.cumRewards = np.zeros(self.nbArms)
-        self.t = 0
-        # self.Explore = True 
-    
-    def choose_arm_to_play(self):
-        self.t=self.t+1
-        ucb=[pi.rvs(self.alpha+self.cumRewards[arm],self.beta+self.nbDraws[arm]- self.cumRewards[arm])              for arm in range(self.nbArms)]
-        return randmax(ucb)
-
-    def receive_reward(self,arm,reward):
-        self.cumRewards[arm] = self.cumRewards[arm]+reward
-        self.nbDraws[arm] = self.nbDraws[arm] +1
-
-    def name(self):
-        return "Thompson Sampling"
 
 class Player:
     def __init__(self, nb_arms, nb_players,alpha=0.1):
@@ -104,7 +20,6 @@ class Player:
         self.my_arm=None
         self.t = 0
         self.has_collided=False
-        self.Explore = True 
 
     def choose_arm_to_play(self):
         self.t=self.t+1

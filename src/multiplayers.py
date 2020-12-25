@@ -74,11 +74,6 @@ class KlUCBPolicy(IndexPolicy):
 # -------- Strategies --------
 
 class Player:
-    def __init__(self):
-        pass
-
-
-class PlayerRandTop(Player):
     """One Player using RandTopM with UCB policy
 
     Args:
@@ -119,12 +114,27 @@ class PlayerRandTop(Player):
         self.has_collided = False
 
     def choose_arm_to_play(self):
+        raise NotImplementedError("Must be implemented.")
+        
+    def receive_reward(self, reward, collision):
+        self.cum_rewards[self.my_arm] += reward
+        self.nb_draws[self.my_arm] += 1
+        self.has_collided = collision
+
+        self.t += 1
+
+    def name(self):
+        return "Player"
+
+
+class PlayerRandTop(Player):
+    def choose_arm_to_play(self):
         if np.any(self.nb_draws == 0):
             self.my_arm = randmax(-self.nb_draws)
             return self.my_arm
 
         ucbs_new = self.policy.compute_index(self)
-        best_arms = np.argsort(ucbs_new)[:self.nb_players:-1]  # best arms
+        best_arms = np.argsort(ucbs_new)[::-1][:self.nb_players]  # best arms
         
         if self.my_arm not in best_arms:
             ## if my arm doesn't belong to the M best arms anymore
@@ -141,14 +151,3 @@ class PlayerRandTop(Player):
 
         self.ucbs = ucbs_new
         return self.my_arm
-        
-    def receive_reward(self, reward, collision):
-        self.cum_rewards[self.my_arm] += reward
-        self.nb_draws[self.my_arm] += 1
-        self.has_collided = collision
-
-        self.t += 1
-
-    def name(self):
-        return "Player"
-
