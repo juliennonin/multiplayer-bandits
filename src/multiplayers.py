@@ -34,7 +34,7 @@ def multiplayer_env(bandit, players, max_time):
             
             selections[j][t] = arm
             collisions[j][t] = collision 
-            chairs[j][t]=player.is_on_chair()       
+            chairs[j][t]=player.is_on_chair      
             sensing_infos[j][t] = reward
     
     return selections, collisions, chairs, sensing_infos
@@ -180,16 +180,30 @@ class PlayerMcTop(Player):
         else:
             ## if my arm  belongs to the M best arms 
             if self.has_collided and not self.is_on_chair:
-                    ## if there was a collision and my arm is not marked as a chair, 
-                    # randomly choose a new arm and the chosen arm is not a chair
-                    self.my_arm = np.random.choice(best_arms)
-                    self.is_on_chair=False
+                ## if there was a collision and my arm is not marked as a chair, 
+                # randomly choose a new arm and the chosen arm is not a chair
+                self.my_arm = np.random.choice(best_arms)
+                self.is_on_chair=False
             else:
                 ## if there wasn't a collision, 
                 #my arm remains marked as a chair and choose the same arm
                 self.is_on_chair=True
 
         self.ucbs = ucbs_new
-        
+
+        return self.my_arm
+
+
+class PlayerSelfish(Player):
+
+    def choose_arm_to_play(self):
+
+        if np.any(self.nb_draws == 0):
+            self.my_arm = randmax(-self.nb_draws)
+            return self.my_arm
+         
+        ucbs_new = self.policy.compute_index(self)
+        self.ucbs = ucbs_new
+        self.my_arm=randmax(ucbs_new)     # my arm is the best arm among all arms
         return self.my_arm
 
