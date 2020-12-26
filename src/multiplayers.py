@@ -202,8 +202,8 @@ class PlayerSelfish(Player):
             self.my_arm = randmax(-self.nb_draws)
             return self.my_arm
          
-        ucbs_new = self.policy.compute_index(self)
-        self.ucbs = ucbs_new
-        self.my_arm=randmax(ucbs_new)     # my arm is the best arm among all arms
+        self.my_arm=randmax(self.ucbs)     # my arm is the best arm among all arms
+        self.ucbs = self.policy.compute_index(self)
+    
         return self.my_arm
 
