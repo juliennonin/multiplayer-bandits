@@ -17,7 +17,9 @@ def multiplayer_env(bandit, players, max_time):
     K = bandit.nb_arms
     selections = np.zeros((M, max_time), dtype=int)
     collisions = np.zeros((M, max_time), dtype=bool)
+    chairs = np.zeros((M, max_time), dtype=bool)
     sensing_infos = np.zeros((M, max_time))
+
 
     for t in range(max_time):
         chosen_arm_by_player = [player.choose_arm_to_play() for player in players]
@@ -31,10 +33,11 @@ def multiplayer_env(bandit, players, max_time):
             player.receive_reward(reward, collision)
             
             selections[j][t] = arm
-            collisions[j][t] = collision         
+            collisions[j][t] = collision 
+            chairs[j][t]=player.is_on_chair()       
             sensing_infos[j][t] = reward
     
-    return selections, collisions, sensing_infos
+    return selections, collisions, chairs, sensing_infos
 
 
 # -------- Index Policies --------
@@ -112,7 +115,8 @@ class Player:
         self.ucbs = np.zeros(self.nb_arms)
         self.my_arm = None
         self.has_collided = False
-
+        self.is_on_chair=False
+            
     def choose_arm_to_play(self):
         raise NotImplementedError("Must be implemented.")
         
@@ -151,3 +155,41 @@ class PlayerRandTop(Player):
 
         self.ucbs = ucbs_new
         return self.my_arm
+
+
+class PlayerMcTop(Player):
+
+    def choose_arm_to_play(self):
+
+        if np.any(self.nb_draws == 0):
+            self.my_arm = randmax(-self.nb_draws)
+            return self.my_arm
+
+        ucbs_new = self.policy.compute_index(self)
+        best_arms = np.argsort(ucbs_new)[::-1][:self.nb_players]  # best arms
+        
+        if self.my_arm not in best_arms:
+            ## if my arm doesn't belong to the M best arms anymore
+        
+            # arms_previously_worse = set(np.where(self.ucbs <= self.ucbs[self.my_arm])[0])
+            # new_arms_to_choose = set(best_arms) & arms_previously_worse
+            min_ucb_of_best_arms = ucbs_new[best_arms[-1]]
+            new_arms_to_choose = np.where((self.ucbs <= self.ucbs[self.my_arm]) & (ucbs_new >= min_ucb_of_best_arms))[0]
+            self.my_arm = np.random.choice(new_arms_to_choose)
+            self.is_on_chair=False
+        else:
+            ## if my arm  belongs to the M best arms 
+            if self.has_collided and not self.is_on_chair:
+                    ## if there was a collision and my arm is not marked as a chair, 
+                    # randomly choose a new arm and the chosen arm is not a chair
+                    self.my_arm = np.random.choice(best_arms)
+                    self.is_on_chair=False
+            else:
+                ## if there wasn't a collision, 
+                #my arm remains marked as a chair and choose the same arm
+                self.is_on_chair=True
+
+        self.ucbs = ucbs_new
+        
+        return self.my_arm
+
