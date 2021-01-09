@@ -38,6 +38,47 @@ def multiplayer_env(bandit, players, max_time):
     
     return selections, collisions, chairs, sensing_infos
 
+
+
+#-----------Plot experiment------------
+
+def run_experiments(n_random_arm,nb_arms,strategies,policy,nb_players,max_time):
+    
+    """
+    Parameters: 
+    n_random_arm (int) : number of averaging times (random geeration on arms)
+    nb_arms (int) : number of bandit  arms
+    strategies (list of palyer class ):  players strategy type ex: PlayerMcTop, PlayerRandTop, PlayersSelfish 
+    policy (policy class) :  the policy to be used  ex: KlUCBPolicy, UCB1Policy
+    nb_players (int) : numbers of players
+    max_time (int):            experimnent time horizon
+
+    Output:
+    Plot the cumulative centralised regret of each strategy average on bandits n_random_arm instances times
+    """
+    bandits=[BernoulliMAB(np.random.uniform(0,1,nb_arms),m=nb_players) for i in range(n_random_arm)]
+
+    names=[strategies[i].name() + "_" + policy.name() for i in range(len(strategies))]
+    strategy_cum_r=[]
+    for strategy in strategies:
+        r=[]
+        for i in range(n_random_arm):
+            bandit=bandits[i]
+            if policy.name()=="KlUCB":
+                players=[strategy(nb_arms=3, nb_players=2,policy=policy(bandit.arms))]
+                s,_,_,_=multiplayer_env(bandit, players, max_time)
+                r.append(cumulative_centralised_regret(bandit,s))
+            else:
+                players=[strategy(nb_arms=3, nb_players=2,policy=policy(alpha=0.1))]
+                s,_,_,_=multiplayer_env(bandit, players, max_time)
+                r.append(cumulative_centralised_regret(bandit,s))
+        strategy_cum_r.append(np.mean(r,axis=0))
+
+    for i in range(len(strategies)):
+        plt.plot(strategy_cum_r[i],label=names[i])
+    plt.legend()
+    plt.show()
+
 #----- Cumulative Centralised Pseudo regret---
 
 def cumulative_centralised_regret(bandit,selections):
@@ -65,6 +106,10 @@ class UCB1Policy(IndexPolicy):
         means = player.cum_rewards / player.nb_draws
         bonus = np.sqrt(self.alpha * np.log(player.t) / player.nb_draws)
         return means + bonus
+    
+    @classmethod
+    def name(cls):
+        return f"UCB1({self.alpha})"
 
 
 class KlUCBPolicy(IndexPolicy):
@@ -77,6 +122,10 @@ class KlUCBPolicy(IndexPolicy):
         means = player.cum_rewards / player.nb_draws
         levels = np.log(player.t) / player.nb_draws
         return np.array([arm.kl_ucb(µ, level) for (arm, µ, level) in zip(self.arms, means, levels)])
+    
+    @classmethod
+    def name(cls):
+        return "KlUCB"
 
     
 # -------- Strategies --------
@@ -160,6 +209,9 @@ class PlayerRandTop(Player):
 
         self.ucbs = ucbs_new
         return self.my_arm
+    @classmethod
+    def name(cls):
+        return "RandTopM"
 
 
 class PlayerMcTop(Player):
@@ -197,6 +249,9 @@ class PlayerMcTop(Player):
         self.ucbs = ucbs_new
 
         return self.my_arm
+    @classmethod
+    def name(cls):
+        return "McTopM"
 
 
 class PlayerSelfish(Player):
@@ -211,4 +266,7 @@ class PlayerSelfish(Player):
         self.ucbs = self.policy.compute_index(self)
     
         return self.my_arm
+    @classmethod
+    def name(cls):
+        return "Selfish"
 
