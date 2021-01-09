@@ -10,33 +10,33 @@ class MAB:
         arms (list of arms.Arm)
     """
 
-    def __init__(self, arms, m):
+    def __init__(self, arms,m):
+
         self.arms = arms
         self.nb_arms = len(arms)
-        # self.m=m           # number of best arm (m<=self.nbArms)
+        self.m=m
         self.means = [arm.mean for arm in self.arms]
-        # self.Mbestarm = np.argsort(self.mean)[::-1][:self.m]
-    
+        self.m_best_arms_means=np.sort(self.means)[::-1][:self.m]
+        
     def generate_reward(self, arm):
         return self.arms[arm].sample()
-
+    
     def __repr__(self):
         return f"MAB({self.arms})"
 
-
 class BernoulliMAB(MAB):
     """Bernoulli MAB
+
 
     Args:
         means (list of float): vector of Bernoulli's means
     """
 
-    def __init__(self, means):
-        super().__init__([arms.Bernoulli(p) for p in means], m=0)
-
+    def __init__(self,means,m):
+        super().__init__([arms.Bernoulli(p) for p in means],m)
+    
     def __repr__(self):
         return f"BernoulliMAB({self.means})"
-
 
 def RandomBernoulliBandit(Delta,K):
     """generates a K-armed Bernoulli instance at random where Delta is the gap between the best and second best arm"""
