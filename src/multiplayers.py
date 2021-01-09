@@ -31,13 +31,18 @@ def multiplayer_env(bandit, players, max_time):
             reward, collision = rewards[arm], arms_counts[arm] != 1
             
             player.receive_reward(reward, collision)
-            
             selections[j][t] = arm
             collisions[j][t] = collision 
             chairs[j][t]=player.is_on_chair      
             sensing_infos[j][t] = reward
     
     return selections, collisions, chairs, sensing_infos
+
+#----- Cumulative Centralised Pseudo regret---
+
+def cumulative_centralised_regret(bandit,selections):
+    """Compute the cumulative centralised pseudo-regret associated to players sequence of arm selections"""
+    return np.sum(np.cumsum(bandit.m_best_arms_means.reshape(-1,1)*np.ones(selections.shape)-np.array(bandit.means)[selections],axis=1),axis=0)
 
 
 # -------- Index Policies --------
