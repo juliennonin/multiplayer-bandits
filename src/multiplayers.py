@@ -57,7 +57,6 @@ def run_experiments(n_random_arm,nb_arms,strategies,policy,nb_players,max_time):
     Plot the cumulative centralised regret of each strategy average on bandits n_random_arm instances times
     """
     bandits=[BernoulliMAB(np.random.uniform(0,1,nb_arms),m=nb_players) for i in range(n_random_arm)]
-
     names=[strategies[i].name() + "_" + policy.name() for i in range(len(strategies))]
     strategy_cum_r=[]
     for strategy in strategies:
@@ -72,7 +71,7 @@ def run_experiments(n_random_arm,nb_arms,strategies,policy,nb_players,max_time):
                 players=[strategy(nb_arms=3, nb_players=2,policy=policy(alpha=0.1))]
                 s,_,_,_=multiplayer_env(bandit, players, max_time)
                 r.append(cumulative_centralised_regret(bandit,s))
-        strategy_cum_r.append(np.mean(r,axis=0))
+        strategy_cum_r.append(np.mean(np.array(r),axis=0))
 
     for i in range(len(strategies)):
         plt.plot(strategy_cum_r[i],label=names[i])
