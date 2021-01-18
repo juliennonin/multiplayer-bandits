@@ -1,5 +1,5 @@
 import numpy as np
-from src.utils import randmax
+from src.utils import randmax, print_loading
 
 
 # -------- Experiments --------
@@ -58,7 +58,45 @@ class MultiplayerEnv():
                 self.sensing_infos[j][t] = reward
 
 
+def multiple_runs(env, N_exp):
+    time_horizon = env.time_horizon
+    M, K = env.M, env.K
+    T = np.arange(1, time_horizon + 1)
+    oracle_cum_reward = env.bandit.m_best_arms_means(M).sum() * T
 
+    ## Initialization
+    # avg_cum_reward = np.zeros(time_horizon)
+    # Average number of colliding players on arm k up to time t, E[C_k(t)] 
+    avg_nb_colliding_players = np.zeros((K, time_horizon))
+    # Average number of selections of arm k up to time t, E[N_k(t)]
+    avg_nb_selections = np.zeros((K, time_horizon))
+    # Final empirical regret for each simulation, i.e. oracle_reward - cum_reward
+    end_regrets = np.zeros(N_exp)
+
+    for i in range(N_exp):
+        env.clear()
+        env.run()
+        # avg_cum_reward += env.cumulative_reward()
+        for k in range(K):
+            avg_nb_colliding_players[k] += env.cumulative_nb_of_colliding_players(k)
+            avg_nb_selections[k] += env.cumulative_nb_of_selections(k)
+        print_loading(i+1, N_exp)
+        end_regrets[i] = oracle_cum_reward[-1] - env.cumulative_reward()[-1]
+
+    # avg_cum_reward /= N_exp
+    avg_nb_colliding_players /= N_exp
+    avg_nb_selections /= N_exp
+
+    ## Compute the expected regret using the regret definition
+    # cum_regret1 = oracle_cum_reward - avg_cum_reward
+
+    ## Compute the expected regret using the regret decomposition formula
+    gaps = (env.bandit.means - env.bandit.last_best_arm_mean(M))[:, np.newaxis]  # gaps[k] is µ_k - µ_M^*
+    decomp_c = (env.bandit.means[:, np.newaxis] * avg_nb_colliding_players).sum(0)  # c-term in the decomposition
+    decomp_ab = np.where(gaps < 0,  - gaps * avg_nb_selections, gaps * (T - avg_nb_selections)).sum(0)  # a & b terms
+    cum_regret = decomp_ab + decomp_c
+
+    return cum_regret, end_regrets
 
 #-----------Plot experiment------------
 def run_experiments(n_random_arm,nb_arms,strategies,policy,nb_players,max_time):
