@@ -4,39 +4,59 @@ from src.utils import randmax
 
 # -------- Experiments --------
 
-def multiplayer_env(bandit, players, max_time):
+class MultiplayerEnv():
     """Run a multiplayer multi-armed bandit strategy
 
     Args:
         bandit (MAB): multi-armed bandit
         players (list of Player): 
-        max_time (int): time horizon
+        time_horizon (int): time horizon
     """
 
-    M = len(players)
-    K = bandit.nb_arms
-    selections = np.zeros((M, max_time), dtype=int)
-    collisions = np.zeros((M, max_time), dtype=bool)
-    chairs = np.zeros((M, max_time), dtype=bool)
-    sensing_infos = np.zeros((M, max_time))
+    def __init__(self, bandit, players, time_horizon):
+        self.bandit = bandit
+        self.players = players
+        self.time_horizon = time_horizon
+        self.K, self.M = self.bandit.nb_arms, len(players)
+        self.clear()
 
+    def clear(self):
+        self.selections = np.zeros((self.M, self.time_horizon), dtype=int)
+        self.collisions = np.zeros((self.M, self.time_horizon), dtype=bool)
+        # self.chairs = np.zeros((self.M, self.time_horizon), dtype=bool)
+        self.sensing_infos = np.zeros((self.M, self.time_horizon))
+        for player in self.players:
+            player.clear()
 
-    for t in range(max_time):
-        chosen_arm_by_player = [player.choose_arm_to_play() for player in players]
-        arms_counts = dict(zip(*np.unique(chosen_arm_by_player, return_counts=True)))  # arm -> number of player that have chosen it
-        rewards = {arm: bandit.generate_reward(arm) for arm in arms_counts}  # arm -> reward
+    @property
+    def rewards(self):
+        return self.sensing_infos * (~self.collisions)
 
-        for j, player in enumerate(players):
-            arm = chosen_arm_by_player[j]
-            reward, collision = rewards[arm], arms_counts[arm] != 1
-            
-            player.receive_reward(reward, collision)
-            selections[j][t] = arm
-            collisions[j][t] = collision 
-            chairs[j][t] = player.is_on_chair      
-            sensing_infos[j][t] = reward
-    
-    return selections, collisions, chairs, sensing_infos
+    def cumulative_reward(self):
+        return np.cumsum(self.rewards.sum(0))
+
+    def cumulative_nb_of_colliding_players(self, arm):
+        return np.cumsum((self.collisions & (self.selections == arm)).sum(0))
+
+    def cumulative_nb_of_selections(self, arm):
+        return np.cumsum((self.selections == arm).sum(0))
+
+    def run(self):
+        for t in range(self.time_horizon):
+            chosen_arm_by_player = [player.choose_arm_to_play() for player in self.players]
+            arms_counts = dict(zip(*np.unique(chosen_arm_by_player, return_counts=True)))  # arm -> number of player that have chosen it
+            rewards = {arm: self.bandit.generate_reward(arm) for arm in arms_counts}  # arm -> reward
+
+            for j, player in enumerate(self.players):
+                arm = chosen_arm_by_player[j]
+                reward, collision = rewards[arm], arms_counts[arm] != 1
+                
+                player.receive_reward(reward, collision)
+                self.selections[j][t] = arm
+                self.collisions[j][t] = collision 
+                # self.chairs[j][t] = player.is_on_chair      
+                self.sensing_infos[j][t] = reward
+
 
 
 
