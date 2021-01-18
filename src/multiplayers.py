@@ -33,7 +33,7 @@ def multiplayer_env(bandit, players, max_time):
             player.receive_reward(reward, collision)
             selections[j][t] = arm
             collisions[j][t] = collision 
-            chairs[j][t]=player.is_on_chair      
+            chairs[j][t] = player.is_on_chair      
             sensing_infos[j][t] = reward
     
     return selections, collisions, chairs, sensing_infos
@@ -41,14 +41,13 @@ def multiplayer_env(bandit, players, max_time):
 
 
 #-----------Plot experiment------------
-
 def run_experiments(n_random_arm,nb_arms,strategies,policy,nb_players,max_time):
     
     """
     Parameters: 
     n_random_arm (int) : number of averaging times (random geeration on arms)
     nb_arms (int) : number of bandit  arms
-    strategies (list of palyer class ):  players strategy type ex: PlayerMcTop, PlayerRandTop, PlayersSelfish 
+    strategies (list of palyer class ):  players strategy type ex: PlayerMCTop, PlayerRandTop, PlayersSelfish 
     policy (policy class) :  the policy to be used  ex: KlUCBPolicy, UCB1Policy
     nb_players (int) : numbers of players
     max_time (int):            experimnent time horizon
@@ -106,9 +105,11 @@ class UCB1Policy(IndexPolicy):
         bonus = np.sqrt(self.alpha * np.log(player.t) / player.nb_draws)
         return means + bonus
     
-    @classmethod
-    def name(cls):
+    def name(self):
         return f"UCB1({self.alpha})"
+
+    def __repr__(self):
+        return f"UCB1Policy({self.alpha})"
 
 
 class KlUCBPolicy(IndexPolicy):
@@ -213,7 +214,7 @@ class PlayerRandTop(Player):
         return "RandTopM"
 
 
-class PlayerMcTop(Player):
+class PlayerMCTop(Player):
 
     def choose_arm_to_play(self):
 
@@ -250,7 +251,7 @@ class PlayerMcTop(Player):
         return self.my_arm
     @classmethod
     def name(cls):
-        return "McTopM"
+        return "MCTopM"
 
 
 class PlayerSelfish(Player):
