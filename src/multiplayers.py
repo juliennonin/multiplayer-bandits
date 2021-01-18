@@ -237,7 +237,6 @@ class PlayerRandTop(Player):
 class PlayerMCTop(Player):
 
     def choose_arm_to_play(self):
-
         if np.any(self.nb_draws == 0):
             self.my_arm = randmax(-self.nb_draws)
             return self.my_arm
@@ -277,7 +276,6 @@ class PlayerMCTop(Player):
 class PlayerSelfish(Player):
 
     def choose_arm_to_play(self):
-
         if np.any(self.nb_draws == 0):
             self.my_arm = randmax(-self.nb_draws)
             return self.my_arm
@@ -286,6 +284,12 @@ class PlayerSelfish(Player):
         self.ucbs = self.policy.compute_index(self)
     
         return self.my_arm
+
+    def receive_reward(self, reward, collision):
+        reward_no_sensing = 0 if collision else reward
+        return super().receive_reward(reward_no_sensing, collision)
+
+    
     @classmethod
     def name(cls):
         return "Selfish"
