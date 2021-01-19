@@ -1,5 +1,8 @@
 import numpy as np
 from src.utils import randmax, print_loading
+import matplotlib.animation as animation
+import matplotlib.pyplot as plt
+from math import sqrt
 
 
 # -------- Experiments --------
@@ -57,6 +60,47 @@ class MultiplayerEnv():
                 # self.chairs[j][t] = player.is_on_chair      
                 self.sensing_infos[j][t] = reward
 
+    def display_anim(self):
+        M, K, T = self.M, self.K, self.time_horizon
+        MAX_MARKER_SIZE = 2500
+        fig = plt.figure(figsize=(7, M))
+
+        nb_draws_scatters = [None] * M
+        annotations = [None] * (K * M)
+        for j in range(M):
+            nb_draws_scatters[j] = plt.scatter(np.arange(K), np.zeros(K) + j, s=50*np.ones(K), color="plum", zorder=10, alpha=.8)
+            for k in range(K):
+                annotations[j*K + k] = plt.annotate(0, xy=(k, j), xytext=(0, 2),
+                    textcoords="offset points", ha="center", va="bottom", zorder=11)
+            
+        for k in range(K):
+            plt.axvline(k, c="whitesmoke", lw=1, zorder=0)
+        # plt.axis("off")
+
+        plt.ylim(-0.5, M-.25)
+        plt.xticks(range(K), self.bandit.means)
+        plt.yticks(range(M))
+        plt.xlabel("Arms")
+        plt.ylabel("Players")
+        for spine in plt.gca().spines.values():
+            spine.set_visible(False)
+        plt.gca().xaxis.set_label_position('top')
+        plt.tick_params(color="lightgrey", labelbottom=False, labeltop=True, top=True, bottom=False)
+        
+        def update_plot(t):
+            for j in range(M):
+                nb_draws, _ = np.histogram(self.selections[j, 0:t], range=(-0.5, K+.5), bins=K+1)
+                sizes = MAX_MARKER_SIZE * nb_draws / T
+                nb_draws_scatters[j].set_sizes(sizes)
+                nb_draws_scatters[j].set_color(["plum" if self.selections[j, t-1] != k else "firebrick" if self.collisions[j, t-1] else "darkorchid" for k in range(K)])
+                
+                for k in range(K):
+                    annotations[j*K + k].set_text(nb_draws[k])
+                    annotations[j*K + k].set_position((0, sqrt(sizes[k])/2 + 2))
+                    
+            return (*nb_draws_scatters, *annotations)
+
+        return animation.FuncAnimation(fig, update_plot, frames=T+1, blit=True)
 
 def multiple_runs(env, N_exp):
     time_horizon = env.time_horizon
