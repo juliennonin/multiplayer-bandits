@@ -7,7 +7,7 @@ from math import sqrt
 
 # -------- Experiments --------
 
-class MultiplayerEnv():
+class MultiplayerExp():
     """Run a multiplayer multi-armed bandit strategy
 
     Args:
@@ -89,7 +89,7 @@ class MultiplayerEnv():
         
         def update_plot(t):
             for j in range(M):
-                nb_draws, _ = np.histogram(self.selections[j, 0:t], range=(-0.5, K+.5), bins=K+1)
+                nb_draws, _ = np.histogram(self.selections[j, 0:t], range=(0, K), bins=K)
                 sizes = MAX_MARKER_SIZE * nb_draws / T
                 nb_draws_scatters[j].set_sizes(sizes)
                 nb_draws_scatters[j].set_color(["plum" if self.selections[j, t-1] != k else "firebrick" if self.collisions[j, t-1] else "darkorchid" for k in range(K)])
@@ -103,7 +103,7 @@ class MultiplayerEnv():
         return animation.FuncAnimation(fig, update_plot, frames=T+1, blit=True)
 
 
-def multiple_runs(env, N_exp):
+def multiple_runs(env, N_exp, return_end_regrets=False):
     time_horizon = env.time_horizon
     M, K = env.M, env.K
     T = np.arange(1, time_horizon + 1)
@@ -141,4 +141,7 @@ def multiple_runs(env, N_exp):
     decomp_ab = np.where(gaps < 0,  - gaps * avg_nb_selections, gaps * (T - avg_nb_selections)).sum(0)  # a & b terms
     cum_regret = decomp_ab + decomp_c
 
-    return cum_regret, end_regrets
+    if return_end_regrets:
+        return cum_regret, end_regrets
+    else:
+        return cum_regret

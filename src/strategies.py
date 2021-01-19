@@ -56,6 +56,11 @@ class Player:
         return "Player"
 
 
+def strategy(strategy, nb_arms, nb_players, *args, **kwargs):
+    assert issubclass(strategy, Player), "strategy should be a sub-class of Player"
+    return [strategy(nb_arms, nb_players, *args, **kwargs) for _ in range(nb_players)]
+
+
 class PlayerRandTopOld(Player):
     def choose_arm_to_play(self):
         if np.any(self.nb_draws == 0):
