@@ -60,7 +60,7 @@ class MultiplayerEnv():
                 # self.chairs[j][t] = player.is_on_chair      
                 self.sensing_infos[j][t] = reward
 
-    def display_anim(self):
+    def animation(self):
         M, K, T = self.M, self.K, self.time_horizon
         MAX_MARKER_SIZE = 2500
         fig = plt.figure(figsize=(7, M))
@@ -101,6 +101,7 @@ class MultiplayerEnv():
             return (*nb_draws_scatters, *annotations)
 
         return animation.FuncAnimation(fig, update_plot, frames=T+1, blit=True)
+
 
 def multiple_runs(env, N_exp):
     time_horizon = env.time_horizon
@@ -287,7 +288,7 @@ class Player:
         return "Player"
 
 
-class PlayerRandTop(Player):
+class PlayerRandTopOld(Player):
     def choose_arm_to_play(self):
         if np.any(self.nb_draws == 0):
             self.my_arm = randmax(-self.nb_draws)
@@ -311,6 +312,34 @@ class PlayerRandTop(Player):
 
         self.ucbs = ucbs_new
         return self.my_arm
+
+    @classmethod
+    def name(cls):
+        return "RandTopMOld"
+
+class PlayerRandTop(Player):
+    def choose_arm_to_play(self):
+        if np.any(self.nb_draws == 0):
+            self.my_arm = randmax(-self.nb_draws)
+            return self.my_arm
+
+        ucbs_new = self.policy.compute_index(self)
+        best_arms = np.argsort(ucbs_new)[::-1][:self.nb_players]  # best arms
+        
+        if self.my_arm not in best_arms:
+            ## my arm is no more a good choice
+            # arms_previously_worse = set(np.where(self.ucbs <= self.ucbs[self.my_arm])[0])
+            # new_arms_to_choose = set(best_arms) & arms_previously_worse
+            min_ucb_of_best_arms = ucbs_new[best_arms[-1]]
+            new_arms_to_choose = np.where((self.ucbs <= self.ucbs[self.my_arm]) & (ucbs_new >= min_ucb_of_best_arms))[0]
+            self.my_arm = np.random.choice(new_arms_to_choose)
+        elif self.has_collided:
+            ## if there was a collision, randomly choose a new arm
+            self.my_arm = np.random.choice(best_arms)
+
+        self.ucbs = ucbs_new
+        return self.my_arm
+    
     @classmethod
     def name(cls):
         return "RandTopM"
