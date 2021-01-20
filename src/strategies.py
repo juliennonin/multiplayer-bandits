@@ -203,6 +203,7 @@ class PlayerMCTop(Player):
         self.ucbs = ucbs_new
 
         return self.my_arm
+    
     @classmethod
     def name(cls):
         return "MCTopM"

@@ -31,6 +31,8 @@ class MAB:
     def __repr__(self):
         return f"MAB({self.arms})"
 
+    def to_latex(self):
+        return ", ".join([arm.to_latex() for arm in self.arms])
 
 class BernoulliMAB(MAB):
     """Bernoulli MAB

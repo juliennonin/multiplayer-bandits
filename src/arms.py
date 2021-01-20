@@ -77,6 +77,9 @@ class Bernoulli(Arm):
         upper_bound = min(1, x + np.sqrt(level / 2))
         return super().kl_ucb(x, level, upper_bound, precision)
 
+    def to_latex(self):
+        return fr"$\mathcal{{B}}({self.mean})$"
+
 
 class Gaussian(Arm):
     """Gaussian arm with specified mean and variance"""

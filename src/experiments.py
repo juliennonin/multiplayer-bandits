@@ -114,7 +114,9 @@ class MultiplayerExp():
             spine.set_visible(False)
         plt.gca().xaxis.set_label_position('top')
         plt.tick_params(color="lightgrey", labelbottom=False, labeltop=True, top=True, bottom=False)
-        
+        plt.gca().invert_yaxis()
+        plt.tight_layout()
+
         def update_plot(t):
             for j in range(M):
                 nb_draws, _ = np.histogram(self.selections[j, 0:t], range=(0, K), bins=K)
@@ -131,17 +133,19 @@ class MultiplayerExp():
         return animation.FuncAnimation(fig, update_plot, frames=T+1, blit=True)
 
 
-def multiple_runs(env, N_exp, return_end_regrets=False):
+def multiple_runs(env, N_exp, return_end_regrets=False, return_regret_decomposition=False):
     """Run a multiplayer environment N_exp times to estimate the cumulated reward.
 
     Args:
         env (MultiplayerExp): a multiplayer experiment to be run
         N_exp (int): number of runs
-        return_end_regrets (bool, optional): If set to True, returns the list of end cumulated reward of each run.
+        return_end_regrets (bool, optional): If set to True, return the list of end cumulated reward of each run.
+        return_regret_decomposition (bool, optional): If set to True return the three terms of the regret decomposition
 
     Returns:
         (array of size env.time_horizon): Evolution of expected cumulated reward
         (array of size N_exp, optional): final cumulated reward of each run (if return_end_regrets is set to True)
+        (tuple of 3 arrays of size env.time_horizon, optional): three terms of the regret decomposition
     """
     time_horizon = env.time_horizon
     M, K = env.M, env.K
@@ -176,11 +180,14 @@ def multiple_runs(env, N_exp, return_end_regrets=False):
 
     ## Compute the expected regret using the regret decomposition formula
     gaps = (env.bandit.means - env.bandit.last_best_arm_mean(M))[:, np.newaxis]  # gaps[k] is µ_k - µ_M^*
+    decomp_a = np.where(gaps < 0, - gaps * avg_nb_selections, 0).sum(0)  # a-terù in the decomposition
+    decomp_b = np.where(gaps >= 0, gaps * (T - avg_nb_selections), 0).sum(0)  # b-term
     decomp_c = (env.bandit.means[:, np.newaxis] * avg_nb_colliding_players).sum(0)  # c-term in the decomposition
-    decomp_ab = np.where(gaps < 0,  - gaps * avg_nb_selections, gaps * (T - avg_nb_selections)).sum(0)  # a & b terms
-    cum_regret = decomp_ab + decomp_c
+    cum_regret = decomp_a + decomp_b + decomp_c
 
+    to_return = [cum_regret]
     if return_end_regrets:
-        return cum_regret, end_regrets
-    else:
-        return cum_regret
+        to_return.append(end_regrets)
+    if return_regret_decomposition:
+        to_return.append((decomp_a, decomp_b, decomp_c))
+    return to_return[0] if len(to_return) == 1 else to_return 
