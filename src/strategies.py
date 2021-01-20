@@ -1,3 +1,11 @@
+"""
+    Here are defined the individual strategies for Multi-Player Bandits.
+        * PlayerRandTopOld, RandTopM as defined in L. Besson, É. Kaufmann, "Multi-Player Bandits Models Revisited".
+        * PlayerRandTop, a fixed version of RandTopM where a collision always forces a player to change arm.
+        * PlayerMCTop, MCTopM as defined in the considered article.
+        * PlayerSelfish, a heuristic to play Multi-Player Bandits in the no-sensing framework.
+"""
+
 import numpy as np
 from src.utils import randmax
 
@@ -12,7 +20,7 @@ class Player:
     Attributes:
         nb_arms (int):                  number of arms (K)
         nb_players (int):               number of players (M)
-        policy (IndexPolicy):           policy (UCB1, klUCB)
+        policy (IndexPolicy):           policy (e.g. UCB1, klUCB)
 
         nb_draws (array of size K):     number of selections of each arm k
         cum_rewards (array of size K):  cumulative rewards of each arm k
@@ -57,11 +65,35 @@ class Player:
 
 
 def strategy(strategy, nb_arms, nb_players, *args, **kwargs):
+    """Build and wrap the individual strategies
+
+    Args:
+        strategy (Player sub-class): individual strategy of the players
+        nb_arms (int): number of arms in the bandit
+        nb_players (int): number of players (this parameter is known to the other players)
+        Other arguments (e.g. an index policy): provided to the strategy
+
+    Returns:
+        (list of instances of Player): list of players with the same strategy
+    """
     assert issubclass(strategy, Player), "strategy should be a sub-class of Player"
     return [strategy(nb_arms, nb_players, *args, **kwargs) for _ in range(nb_players)]
 
 
 class PlayerRandTopOld(Player):
+    """Implementation of the original RandTopM algorithm
+    
+    A player always choose an arm with an index among the M best (where M is the number of players).
+    A player plays the same arm as long as it has an index among the M best.
+    When the currently selected arm becomes poorer (according to the index policy), the player
+    randomly switch to an other arm (among the estimated M best arms if a collision occured, or
+    among the latest best arms that were previously thought to be worse than the current arm).
+    
+    !! Note that here a collision does not result in a change of arms !!
+    !! A player decides to change his arm, only if it becomes suboptimal !!
+    !! (And this is certainly not the spirit of the RandTopM algorithm as described by L. Besson.) !!
+    """
+
     def choose_arm_to_play(self):
         if np.any(self.nb_draws == 0):
             self.my_arm = randmax(-self.nb_draws)
@@ -92,6 +124,17 @@ class PlayerRandTopOld(Player):
 
 
 class PlayerRandTop(Player):
+    """Implementation of our understanding/interpretation of RandTopM
+    
+    A player plays the same arm as long as its index lays among the M best and
+    as long as there is no collision.
+    As soon as the arm becomes sub-optimal (its index is no more among the M best),
+    the player randomly switch to a subset of the estimated M-best arms
+    (the newly chosen arm previously has a smaller index that the old arm).
+    !! Here a collision always results in a change of arms !!
+    Indeed if the player collides, he randomly switches to a new optimal arm.
+    """
+
     def choose_arm_to_play(self):
         if np.any(self.nb_draws == 0):
             self.my_arm = randmax(-self.nb_draws)
@@ -120,6 +163,13 @@ class PlayerRandTop(Player):
 
 
 class PlayerMCTop(Player):
+    """Implementation of MCTopM
+
+    The behavior of the player is similar to the RandTop strategy.
+    But here, when a collision occurs, the player switches to another arm,
+    if he is in a 'transition state' (is_on_chair is set to False).
+    You are invited to read the original paper for more details.
+    """
 
     def choose_arm_to_play(self):
         if np.any(self.nb_draws == 0):
@@ -159,6 +209,7 @@ class PlayerMCTop(Player):
 
 
 class PlayerSelfish(Player):
+    """Implementation of the Selfish strategy to handle the no-sensing framework"""
 
     def choose_arm_to_play(self):
         if np.any(self.nb_draws == 0):
@@ -171,8 +222,10 @@ class PlayerSelfish(Player):
         return self.my_arm
 
     def receive_reward(self, reward, collision):
+        """Here the player doesn't have access to the reward produces by the arm,
+        or to the collision information. He only receives its actual reward."""
         reward_no_sensing = 0 if collision else reward
-        return super().receive_reward(reward_no_sensing, collision)
+        return super().receive_reward(reward_no_sensing, False)
 
     
     @classmethod

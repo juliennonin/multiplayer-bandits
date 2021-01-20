@@ -1,3 +1,6 @@
+"""Useful tools to test a strategy by running experiments and estimating expected regret."""
+
+
 import numpy as np
 from src.utils import print_loading
 import matplotlib.animation as animation
@@ -5,15 +8,29 @@ import matplotlib.pyplot as plt
 from math import sqrt
 
 
-# -------- Experiments --------
-
 class MultiplayerExp():
     """Run a multiplayer multi-armed bandit strategy
 
     Args:
         bandit (MAB): multi-armed bandit
-        players (list of Player): 
+        players (list of Player): list of individual strategies of each player
         time_horizon (int): time horizon
+
+    Attributes & Properties:
+        bandit (MAB): multi-armed bandit environment
+        players (list of Player): list of players
+        time_horizon (int): time horizon
+        K (int): number of arms in the MAB
+        M (int): number of players
+
+        selections (array of int btw 0 and K of shape (M, time_horizon)):
+            selections[j,t] is the index of the arm chosen by player j at time t.
+        collisions (array of bool of shape (M, time_horizon)):
+            collisions[j,t] is True if player j collided at time t, False otherwise.
+        sensing_infos (array of float of shape (M, time_horizon)):
+            sensing_infos[j,t] is the reward produced by arm selections[j,t] for player j at time t.
+        rewards (array of float of shape (M, time_horizon)):
+            rewards[j,t] is the reward received by player j at time t.
     """
 
     def __init__(self, bandit, players, time_horizon):
@@ -24,6 +41,7 @@ class MultiplayerExp():
         self.clear()
 
     def clear(self):
+        """(Re)initialize the experiment"""
         self.selections = np.zeros((self.M, self.time_horizon), dtype=int)
         self.collisions = np.zeros((self.M, self.time_horizon), dtype=bool)
         # self.chairs = np.zeros((self.M, self.time_horizon), dtype=bool)
@@ -33,18 +51,27 @@ class MultiplayerExp():
 
     @property
     def rewards(self):
+        """History of rewards for each player
+
+        Returns:
+            (array of shape (M, time_horizon)): coefficient [j,t] is the reward received by player j at time t.
+        """
         return self.sensing_infos * (~self.collisions)
 
     def cumulative_reward(self):
+        """History of cumulated (centralized) reward."""
         return np.cumsum(self.rewards.sum(0))
 
     def cumulative_nb_of_colliding_players(self, arm):
+        """History of the number of colliding players on the given arm."""
         return np.cumsum((self.collisions & (self.selections == arm)).sum(0))
 
     def cumulative_nb_of_selections(self, arm):
+        """History of the number of selections of the given arm."""
         return np.cumsum((self.selections == arm).sum(0))
 
     def run(self):
+        """Run the experiment (Let the players play on the arms which generate rewards.)"""
         for t in range(self.time_horizon):
             chosen_arm_by_player = [player.choose_arm_to_play() for player in self.players]
             arms_counts = dict(zip(*np.unique(chosen_arm_by_player, return_counts=True)))  # arm -> number of player that have chosen it
@@ -61,6 +88,7 @@ class MultiplayerExp():
                 self.sensing_infos[j][t] = reward
 
     def animate(self):
+        """Produce an animation of the history of selections"""
         M, K, T = self.M, self.K, self.time_horizon
         MAX_MARKER_SIZE = 2500
         fig = plt.figure(figsize=(7, M))
@@ -104,6 +132,17 @@ class MultiplayerExp():
 
 
 def multiple_runs(env, N_exp, return_end_regrets=False):
+    """Run a multiplayer environment N_exp times to estimate the cumulated reward.
+
+    Args:
+        env (MultiplayerExp): a multiplayer experiment to be run
+        N_exp (int): number of runs
+        return_end_regrets (bool, optional): If set to True, returns the list of end cumulated reward of each run.
+
+    Returns:
+        (array of size env.time_horizon): Evolution of expected cumulated reward
+        (array of size N_exp, optional): final cumulated reward of each run (if return_end_regrets is set to True)
+    """
     time_horizon = env.time_horizon
     M, K = env.M, env.K
     T = np.arange(1, time_horizon + 1)

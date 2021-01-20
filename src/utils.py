@@ -8,5 +8,6 @@ def randmax(A):
     return np.random.choice(index)
 
 def print_loading(i, n):
+    """Display a loading bar when i out of n jobs are finished."""
     m = int((100 * i / n) // 5)
     print(f"\r{i}/{n}", "[" + "="*m + " "*(20-m) + "]",f"({100 * i / n:.0f}%)", end='')
