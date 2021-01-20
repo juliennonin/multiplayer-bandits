@@ -1,5 +1,5 @@
 """
-    different classes of arms, all of them have a sample() method which produce rewards
+    different classes of arms, all of them have a sample() method which produces rewards
 """
 
 import numpy as np
@@ -22,7 +22,6 @@ class Arm:
     @classmethod
     def kl(cls, x, y):
         """Kullback-Leibler divergence"""
-        # print("Abstract kl")
         raise NotImplementedError("Must be implemented.")
 
     @classmethod
@@ -39,7 +38,15 @@ class Arm:
 
 
 class Bernoulli(Arm):
-    """Bernoulli arm with mean p"""
+    """Bernoulli arm with mean p
+    
+    Args:
+        p (int):    parameter of the Bernoulli distribution
+    
+    Attributes:
+        mean (int): parameter and mean
+        variance (int): variance
+    """
     
     def __init__(self, p):
         assert 0 <= p <= 1, "The parameter of Bernoulli's distribution must lie between 0 and 1."
@@ -47,6 +54,8 @@ class Bernoulli(Arm):
         self.variance = p * (1-p)
 
     def sample(self):
+        """Generate a reward: 1 with probability self.mean, 0 with probability
+        1 - self.mean"""
         return float(random() < self.mean)
 
     def __repr__(self):
@@ -54,14 +63,16 @@ class Bernoulli(Arm):
 
     @classmethod
     def kl(cls, x, y):
-        """@author: Émilie Kaufmann"""
-        # print("Bernoulli kl")
+        """Compute the Kullback-Leibler divergence between two Bernoulli
+        distributions of parameters x and y
+            @author: Émilie Kaufmann"""
         x = min(max(x, cls.eps), 1-cls.eps)
         y = min(max(y, cls.eps), 1-cls.eps)
         return x * log(x / y) + (1 - x) * log((1 - x) / (1 - y))
 
     @classmethod
     def kl_ucb(cls, x, level, precision=1e-6):
+        """Return u > x such that kl(x, u) = level (using binary search)"""
         # [TODO] !! precision is used for the lower_bound ...
         upper_bound = min(1, x + np.sqrt(level / 2))
         return super().kl_ucb(x, level, upper_bound, precision)

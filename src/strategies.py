@@ -1,133 +1,13 @@
+"""
+    Here are defined the individual strategies for Multi-Player Bandits.
+        * PlayerRandTopOld, RandTopM as defined in L. Besson, É. Kaufmann, "Multi-Player Bandits Models Revisited".
+        * PlayerRandTop, a fixed version of RandTopM where a collision always forces a player to change arm.
+        * PlayerMCTop, MCTopM as defined in the considered article.
+        * PlayerSelfish, a heuristic to play Multi-Player Bandits in the no-sensing framework.
+"""
+
 import numpy as np
 from src.utils import randmax
-
-
-# -------- Experiments --------
-
-def multiplayer_env(bandit, players, max_time):
-    """Run a multiplayer multi-armed bandit strategy
-
-    Args:
-        bandit (MAB): multi-armed bandit
-        players (list of Player): 
-        max_time (int): time horizon
-    """
-
-    M = len(players)
-    K = bandit.nb_arms
-    selections = np.zeros((M, max_time), dtype=int)
-    collisions = np.zeros((M, max_time), dtype=bool)
-    chairs = np.zeros((M, max_time), dtype=bool)
-    sensing_infos = np.zeros((M, max_time))
-
-
-    for t in range(max_time):
-        chosen_arm_by_player = [player.choose_arm_to_play() for player in players]
-        arms_counts = dict(zip(*np.unique(chosen_arm_by_player, return_counts=True)))  # arm -> number of player that have chosen it
-        rewards = {arm: bandit.generate_reward(arm) for arm in arms_counts}  # arm -> reward
-
-        for j, player in enumerate(players):
-            arm = chosen_arm_by_player[j]
-            reward, collision = rewards[arm], arms_counts[arm] != 1
-            
-            player.receive_reward(reward, collision)
-            selections[j][t] = arm
-            collisions[j][t] = collision 
-            chairs[j][t]=player.is_on_chair      
-            sensing_infos[j][t] = reward
-    
-    return selections, collisions, chairs, sensing_infos
-
-
-
-#-----------Plot experiment------------
-
-def run_experiments(n_random_arm,nb_arms,strategies,policy,nb_players,max_time):
-    
-    """
-    Parameters: 
-    n_random_arm (int) : number of averaging times (random geeration on arms)
-    nb_arms (int) : number of bandit  arms
-    strategies (list of palyer class ):  players strategy type ex: PlayerMcTop, PlayerRandTop, PlayersSelfish 
-    policy (policy class) :  the policy to be used  ex: KlUCBPolicy, UCB1Policy
-    nb_players (int) : numbers of players
-    max_time (int):            experimnent time horizon
-
-    Output:
-    Plot the cumulative centralised regret of each strategy average on bandits n_random_arm instances times
-    """
-    bandits=[BernoulliMAB(np.random.uniform(0,1,nb_arms),m=nb_players) for i in range(n_random_arm)]
-    names=[strategies[i].name() + "_" + policy.name() for i in range(len(strategies))]
-    strategy_cum_r=[]
-    for strategy in strategies:
-        r=[]
-        for i in range(n_random_arm):
-            bandit=bandits[i]
-            if policy.name()=="KlUCB":
-                players=[strategy(nb_arms=3, nb_players=2,policy=policy(bandit.arms))]
-                s,_,_,_=multiplayer_env(bandit, players, max_time)
-                r.append(cumulative_centralised_regret(bandit,s))
-            else:
-                players=[strategy(nb_arms=3, nb_players=2,policy=policy(alpha=0.1))]
-                s,_,_,_=multiplayer_env(bandit, players, max_time)
-                r.append(cumulative_centralised_regret(bandit,s))
-        strategy_cum_r.append(np.mean(np.array(r),axis=0))
-
-    for i in range(len(strategies)):
-        plt.plot(strategy_cum_r[i],label=names[i])
-    plt.legend()
-    plt.show()
-
-#----- Cumulative Centralised Pseudo regret---
-
-def cumulative_centralised_regret(bandit,selections):
-    """Compute the cumulative centralised pseudo-regret associated to players sequence of arm selections"""
-    return np.sum(np.cumsum(bandit.m_best_arms_means.reshape(-1,1)*np.ones(selections.shape)-np.array(bandit.means)[selections],axis=1),axis=0)
-
-
-# -------- Index Policies --------
-class IndexPolicy():
-
-    def __init__(self):
-        pass
-
-    def compute_index(self, player):
-        raise NotImplementedError("Must be implemented.")
-
-
-class UCB1Policy(IndexPolicy):
-    
-    def __init__(self, alpha):
-        super().__init__()
-        self.alpha = alpha
-
-    def compute_index(self, player):
-        means = player.cum_rewards / player.nb_draws
-        bonus = np.sqrt(self.alpha * np.log(player.t) / player.nb_draws)
-        return means + bonus
-    
-    @classmethod
-    def name(cls):
-        return f"UCB1({self.alpha})"
-
-
-class KlUCBPolicy(IndexPolicy):
-    
-    def __init__(self, arms_types):
-        self.arms = arms_types
-    
-    def compute_index(self, player):
-        assert len(self.arms) == player.nb_arms, "Number of arms of the policy and the player doesn't match"
-        means = player.cum_rewards / player.nb_draws
-        levels = np.log(player.t) / player.nb_draws
-        return np.array([arm.kl_ucb(µ, level) for (arm, µ, level) in zip(self.arms, means, levels)])
-    
-    @classmethod
-    def name(cls):
-        return "KlUCB"
-
-    
-# -------- Strategies --------
 
 class Player:
     """One Player using RandTopM with UCB policy
@@ -140,7 +20,7 @@ class Player:
     Attributes:
         nb_arms (int):                  number of arms (K)
         nb_players (int):               number of players (M)
-        policy (IndexPolicy):           policy (UCB1, klUCB)
+        policy (IndexPolicy):           policy (e.g. UCB1, klUCB)
 
         nb_draws (array of size K):     number of selections of each arm k
         cum_rewards (array of size K):  cumulative rewards of each arm k
@@ -184,7 +64,36 @@ class Player:
         return "Player"
 
 
-class PlayerRandTop(Player):
+def strategy(strategy, nb_arms, nb_players, *args, **kwargs):
+    """Build and wrap the individual strategies
+
+    Args:
+        strategy (Player sub-class): individual strategy of the players
+        nb_arms (int): number of arms in the bandit
+        nb_players (int): number of players (this parameter is known to the other players)
+        Other arguments (e.g. an index policy): provided to the strategy
+
+    Returns:
+        (list of instances of Player): list of players with the same strategy
+    """
+    assert issubclass(strategy, Player), "strategy should be a sub-class of Player"
+    return [strategy(nb_arms, nb_players, *args, **kwargs) for _ in range(nb_players)]
+
+
+class PlayerRandTopOld(Player):
+    """Implementation of the original RandTopM algorithm
+    
+    A player always choose an arm with an index among the M best (where M is the number of players).
+    A player plays the same arm as long as it has an index among the M best.
+    When the currently selected arm becomes poorer (according to the index policy), the player
+    randomly switch to an other arm (among the estimated M best arms if a collision occured, or
+    among the latest best arms that were previously thought to be worse than the current arm).
+    
+    !! Note that here a collision does not result in a change of arms !!
+    !! A player decides to change his arm, only if it becomes suboptimal !!
+    !! (And this is certainly not the spirit of the RandTopM algorithm as described by L. Besson.) !!
+    """
+
     def choose_arm_to_play(self):
         if np.any(self.nb_draws == 0):
             self.my_arm = randmax(-self.nb_draws)
@@ -208,15 +117,61 @@ class PlayerRandTop(Player):
 
         self.ucbs = ucbs_new
         return self.my_arm
+
+    @classmethod
+    def name(cls):
+        return "RandTopMOld"
+
+
+class PlayerRandTop(Player):
+    """Implementation of our understanding/interpretation of RandTopM
+    
+    A player plays the same arm as long as its index lays among the M best and
+    as long as there is no collision.
+    As soon as the arm becomes sub-optimal (its index is no more among the M best),
+    the player randomly switch to a subset of the estimated M-best arms
+    (the newly chosen arm previously has a smaller index that the old arm).
+    !! Here a collision always results in a change of arms !!
+    Indeed if the player collides, he randomly switches to a new optimal arm.
+    """
+
+    def choose_arm_to_play(self):
+        if np.any(self.nb_draws == 0):
+            self.my_arm = randmax(-self.nb_draws)
+            return self.my_arm
+
+        ucbs_new = self.policy.compute_index(self)
+        best_arms = np.argsort(ucbs_new)[::-1][:self.nb_players]  # best arms
+        
+        if self.my_arm not in best_arms:
+            ## my arm is no more a good choice
+            # arms_previously_worse = set(np.where(self.ucbs <= self.ucbs[self.my_arm])[0])
+            # new_arms_to_choose = set(best_arms) & arms_previously_worse
+            min_ucb_of_best_arms = ucbs_new[best_arms[-1]]
+            new_arms_to_choose = np.where((self.ucbs <= self.ucbs[self.my_arm]) & (ucbs_new >= min_ucb_of_best_arms))[0]
+            self.my_arm = np.random.choice(new_arms_to_choose)
+        elif self.has_collided:
+            ## if there was a collision, randomly choose a new arm
+            self.my_arm = np.random.choice(best_arms)
+
+        self.ucbs = ucbs_new
+        return self.my_arm
+    
     @classmethod
     def name(cls):
         return "RandTopM"
 
 
-class PlayerMcTop(Player):
+class PlayerMCTop(Player):
+    """Implementation of MCTopM
+
+    The behavior of the player is similar to the RandTop strategy.
+    But here, when a collision occurs, the player switches to another arm,
+    if he is in a 'transition state' (is_on_chair is set to False).
+    You are invited to read the original paper for more details.
+    """
 
     def choose_arm_to_play(self):
-
         if np.any(self.nb_draws == 0):
             self.my_arm = randmax(-self.nb_draws)
             return self.my_arm
@@ -250,13 +205,13 @@ class PlayerMcTop(Player):
         return self.my_arm
     @classmethod
     def name(cls):
-        return "McTopM"
+        return "MCTopM"
 
 
 class PlayerSelfish(Player):
+    """Implementation of the Selfish strategy to handle the no-sensing framework"""
 
     def choose_arm_to_play(self):
-
         if np.any(self.nb_draws == 0):
             self.my_arm = randmax(-self.nb_draws)
             return self.my_arm
@@ -265,7 +220,14 @@ class PlayerSelfish(Player):
         self.ucbs = self.policy.compute_index(self)
     
         return self.my_arm
+
+    def receive_reward(self, reward, collision):
+        """Here the player doesn't have access to the reward produces by the arm,
+        or to the collision information. He only receives its actual reward."""
+        reward_no_sensing = 0 if collision else reward
+        return super().receive_reward(reward_no_sensing, False)
+
+    
     @classmethod
     def name(cls):
         return "Selfish"
-
